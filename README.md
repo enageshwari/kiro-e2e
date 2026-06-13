@@ -122,9 +122,22 @@ npx playwright test --headed
 npx playwright show-report
 ```
 
----
+## Playwright best practices applied
 
-## CI/CD — runner image
+This suite follows Playwright's recommended patterns for reliability in CI:
+
+| Practice | Where applied |
+|---|---|
+| **Web-first assertions** — auto-retry until timeout | All `expect()` calls use `toHaveText`, `toBeVisible`, `toBeEmpty`, `toBeFocused` |
+| **Actionability checks** — built into every interaction | `click()`, `fill()`, `tap()`, `press()` all wait for visible + enabled + stable |
+| **`fill()` over `clear()` + `type()`** | `clearAndSubmit()` uses `fill('')` — atomic, triggers input events, actionability-safe |
+| **Page ready gate in fixture** | `goto()` calls `waitUntil: 'domcontentloaded'` then asserts heading visible before any test runs |
+| **DOM state confirmed before axe scan** | Accessibility tests assert element state before running axe — avoids scanning partial DOM |
+| **Focus confirmed before interaction** | Mobile tests assert `toBeFocused()` after tap before filling — ensures correct state |
+| **`toBeEmpty()` for empty assertions** | More semantic than `toHaveText('')`, same retry behavior |
+| **Stable locators** | All locators use `data-testid` via POM — not tied to CSS classes or display text |
+| **Global timeouts in config** | `actionTimeout: 15s`, `navigationTimeout: 30s`, `expect.timeout: 10s` for CI resilience |
+| **Screenshot on failure** | `screenshot: 'only-on-failure'` captures state for debugging failed CI runs |
 
 The `Dockerfile` in this repo builds the Playwright runner image.
 GHA pushes it to ECR on every push to `main`.
@@ -254,3 +267,27 @@ re-trigger it with an empty commit:
 git commit --allow-empty -m "ci: retrigger after OIDC role deployed"
 git push
 ```
+
+---
+
+## CI/CD — runner image
+
+The `Dockerfile` in this repo builds the Playwright runner image.
+GHA pushes it to ECR on every push to `main` using `docker buildx` with ECR registry
+cache — subsequent builds only push changed layers, significantly faster after the
+first build.
+
+```bash
+# Build locally
+docker build -t kiro-e2e:local .
+
+# Run locally against a deployed app
+docker run -e APP_URL=http://your-alb-url.com kiro-e2e:local
+```
+
+### GitHub Actions secrets required
+
+| Secret | Value | Where to get it |
+|---|---|---|
+| `AWS_ROLE_ARN` | `arn:aws:iam::<account>:role/kiro-e2e-gha-role` | `KiroGitHubOidcStack` CDK output |
+| `ECR_REPOSITORY_E2E` | `<account>.dkr.ecr.us-east-1.amazonaws.com/kiro-e2e` | `KiroE2EPipelineStack` CDK output |
