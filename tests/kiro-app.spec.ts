@@ -2,7 +2,7 @@ import { test, expect } from './fixtures';
 
 test.describe('Kiro Web App — UI Tests', () => {
 
-  test('should display the correct page title', async ({ page }) => {
+  test('should display the correct page title', async ({ appPage, page }) => {
     await expect(page).toHaveTitle('Kiro App');
   });
 
