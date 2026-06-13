@@ -10,10 +10,29 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'line' : 'html',
+
   use: {
     baseURL,
     trace: 'on',
+
+    // Actionability timeouts — how long Playwright waits for elements to be
+    // visible, enabled, stable before interacting or asserting.
+    // Set conservatively for CI (remote ALB, cold containers).
+    actionTimeout:    15_000,   // per action: click, fill, tap, etc.
+    navigationTimeout: 30_000,  // page.goto() and navigation events
+
+    // Screenshot on failure for debugging in CI
+    screenshot: 'only-on-failure',
   },
+
+  // Global test timeout — per test (not per assertion)
+  timeout: 60_000,
+
+  // Global expect timeout — how long web-first assertions retry before failing
+  expect: {
+    timeout: 10_000,
+  },
+
   projects: [
     {
       name: 'chromium',
@@ -37,5 +56,5 @@ export default defineConfig({
     },
   ],
   // No webServer block — in CI the app is already deployed externally.
-  // For local dev, start the app manually before running tests.
+  // For local dev, start kiro-app manually before running tests.
 });
