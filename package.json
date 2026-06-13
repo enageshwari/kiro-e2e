@@ -1,0 +1,15 @@
+{
+  "name": "kiro-e2e",
+  "version": "1.0.0",
+  "description": "Playwright E2E tests for kiro-app",
+  "scripts": {
+    "test": "playwright test",
+    "test:ci": "playwright test --reporter=line"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,43 @@
+name: Publish Playwright Runner Image
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+
+# Required for OIDC token request
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    name: Build & Push Runner Image to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region:     ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push Playwright runner image
+        env:
+          REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG:  ${{ github.sha }}
+          ECR_REPO:   ${{ secrets.ECR_REPOSITORY_E2E }}
+        run: |
+          IMAGE_URI="${ECR_REPO}:${IMAGE_TAG}"
+          docker build -t "$IMAGE_URI" -t "${ECR_REPO}:latest" .
+          docker push "$IMAGE_URI"
+          docker push "${ECR_REPO}:latest"
+          echo "Pushed: $IMAGE_URI"
