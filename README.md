@@ -223,6 +223,29 @@ If Fargate fails with `CannotPullContainerError: kiro-e2e:latest not found`:
 The Fargate task runs in private subnets. The `APP_URL` must be the public ALB DNS,
 not `localhost`. The Lambda injects `APP_URL` from the webhook payload sent by kiro-app GHA.
 
+### ALB health check timeout (504 on all tests)
+If all tests fail with HTTP 504, the app is not reachable via the ALB. Symptoms:
+- All API tests fail with `Expected: 200, Received: 504`
+- UI tests fail with empty page title / elements not found
+
+Root cause: CDK's ALB construct creates an ALB security group with **no outbound rules**.
+The ALB cannot send health checks or forward traffic to the Fargate tasks.
+
+Check:
+```bash
+# Verify target health
+aws elbv2 describe-target-health \
+  --target-group-arn <TARGET_GROUP_ARN> \
+  --query 'TargetHealthDescriptions[*].{ip:Target.Id,state:TargetHealth.State,reason:TargetHealth.Reason}'
+
+# Check ALB SG outbound rules — should have port 3000 → task SG
+aws ec2 describe-security-groups --group-ids <ALB_SG_ID> \
+  --query 'SecurityGroups[0].IpPermissionsEgress'
+```
+
+Fix is in `kiro-infra` — `alb.connections.allowTo()` sets both directions correctly.
+Redeploy `KiroAppStack` after the fix.
+
 ### OIDC auth fails on first push
 The OIDC IAM roles (`kiro-app-gha-role`, `kiro-e2e-gha-role`) must be deployed via
 `kiro-infra` **before** the first GHA run. If a workflow runs before the role exists,
